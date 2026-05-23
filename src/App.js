@@ -54,17 +54,14 @@ const DAYS = [
       { name: "Row", sets: 3, repMin: 10, repMax: 12, type: "compound" },
       { name: "Lateral Raise", sets: 3, repMin: 15, repMax: 25, type: "shoulder_raise" },
       { name: "Cable Pullover", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
-      { name: "Tricep Pushdown", sets: 3, repMin: 12, repMax: 15, type: "accessory", superset: true },
-      { name: "Preacher Curl", sets: 3, repMin: 12, repMax: 15, type: "accessory", superset: true },
     ],
     circuit: {
-      label: "Arms Circuit",
+      label: "Superset — Arms",
       rounds: 3,
-      rest: "90s",
+      rest: null,
       exercises: [
-        { name: "Wrist Extension", repMin: 20, repMax: 20, type: "fixed", fixedWeight: 6, noProgression: true },
-        { name: "Overhead Cable Extension", repMin: 15, repMax: 20, type: "accessory" },
-        { name: "Hammer Curl", repMin: 15, repMax: 20, type: "accessory" },
+        { name: "Tricep Pushdown", repMin: 12, repMax: 15, type: "accessory" },
+        { name: "Preacher Curl", repMin: 12, repMax: 15, type: "accessory" },
       ],
     },
   },
@@ -86,6 +83,7 @@ const DAYS = [
       { name: "Close Grip Bench Press", sets: 3, repMin: 6, repMax: 12, type: "compound", topSet: true },
       { name: "Neutral Grip Lat Pulldown", sets: 3, repMin: 10, repMax: 12, type: "compound" },
     ],
+    warmupNote: "Wrist Extension — 2 × 20 reps @ 6kg before circuit (elbow prep, not logged)",
     circuit: {
       label: "Arms Circuit",
       rounds: 3,
@@ -454,12 +452,20 @@ export default function App() {
     const renderCircuit = () => {
       if (!day.circuit || !circuitLog) return null;
       const { circuit } = day;
+      const isSuperset = !circuit.rest;
       return (
         <div style={{ marginTop: 28, paddingBottom: 20 }}>
+          {/* Warmup note */}
+          {day.warmupNote && (
+            <div style={{ background: C.accentBg, border: `1px solid ${C.accentBorder}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: C.accent, letterSpacing: 2, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>Warm-up</div>
+              <div style={{ fontSize: 12, color: "#ddddee" }}>{day.warmupNote}</div>
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <div style={{ flex: 1, height: 1, background: C.accent }} />
             <div style={{ fontSize: 9, color: "#000", background: C.accent, padding: "4px 12px", borderRadius: 4, letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>
-              {circuit.label} · {circuit.rounds} rounds · {circuit.rest} rest
+              {circuit.label}{circuit.rest ? ` · ${circuit.rounds} rounds · ${circuit.rest} rest` : ` · ${circuit.rounds} sets`}
             </div>
             <div style={{ flex: 1, height: 1, background: C.accent }} />
           </div>
@@ -497,7 +503,7 @@ export default function App() {
           {Array.from({ length: circuit.rounds }, (_, round) => (
             <div key={round}>
               <div style={{ display: "grid", gridTemplateColumns: `52px repeat(${circuit.exercises.length}, 1fr)`, gap: 4, marginBottom: 4, padding: "0 2px" }}>
-                <div style={{ fontSize: 11, color: "#fff", fontWeight: 700, alignSelf: "center" }}>Round {round + 1}</div>
+                <div style={{ fontSize: 11, color: "#fff", fontWeight: 700, alignSelf: "center" }}>{isSuperset ? `Set ${round + 1}` : `Round ${round + 1}`}</div>
                 {circuit.exercises.map((ex, ei) => {
                   const entry = circuitLog[round]?.[ei] || { weight: "", reps: "" };
                   return (
@@ -517,7 +523,7 @@ export default function App() {
                 <input type="text" placeholder={`Round ${round + 1} notes…`} value={circuitLog[round]?.[0]?.notes || ""} onChange={e => updateCircuit(activeDay, round, 0, "notes", e.target.value)}
                   style={{ fontSize: 10, color: "#444466", width: "100%", background: "transparent", borderBottom: "1px solid #44445a", padding: "3px 0" }} />
               </div>
-              {round < circuit.rounds - 1 && <div style={{ textAlign: "center", fontSize: 9, color: "#888899", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>— {circuit.rest} rest —</div>}
+              {round < circuit.rounds - 1 && circuit.rest && <div style={{ textAlign: "center", fontSize: 9, color: "#888899", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>— {circuit.rest} rest —</div>}
             </div>
           ))}
         </div>
