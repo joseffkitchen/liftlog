@@ -38,9 +38,9 @@ const DAYS = [
   {
     id: "day1", label: "Day 1", title: "Lower Posterior",
     exercises: [
-      { name: "Hip Thrust", sets: 3, repMin: 8, repMax: 12, type: "compound", topSet: true },
+      { name: "Hip Thrust", sets: 3, repMin: 8, repMax: 10, type: "compound" },
       { name: "RDL", sets: 3, repMin: 6, repMax: 10, type: "compound", topSet: true },
-      { name: "Hack Squat", sets: 3, repMin: 10, repMax: 12, type: "compound" },
+      { name: "Hack Squat", sets: 2, repMin: 10, repMax: 12, type: "compound" },
       { name: "Seated Leg Curl", sets: 3, repMin: 15, repMax: 25, type: "accessory" },
       { name: "Standing Calf Raise", sets: 4, repMin: 20, repMax: 30, type: "accessory" },
     ],
@@ -55,6 +55,7 @@ const DAYS = [
       { name: "Lateral Raise", sets: 3, repMin: 15, repMax: 25, type: "shoulder_raise" },
       { name: "Cable Pullover", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
     ],
+    warmupNote: "Forearm warm-up — empty bar rotations, arms locked. Forward to failure, then backward to failure. Do before the superset.",
     circuit: {
       label: "Superset — Arms",
       rounds: 3,
