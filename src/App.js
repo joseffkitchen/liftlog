@@ -360,6 +360,88 @@ const css = `
   .ex-row { transition: border-color 0.15s; cursor: pointer; }
 `;
 
+// ─── Muscle groups ────────────────────────────────────────────────────────────
+
+const MUSCLE_GROUPS = {
+  "Hip Thrust":                  ["Glutes"],
+  "RDL":                         ["Hamstrings", "Glutes", "Lower Back"],
+  "Hack Squat":                  ["Quads", "Glutes"],
+  "Seated Leg Curl":             ["Hamstrings"],
+  "Standing Calf Raise":         ["Calves"],
+  "Incline DB Press":            ["Chest", "Shoulders", "Triceps"],
+  "Chest Fly":                   ["Chest"],
+  "Pulldown":                    ["Back", "Biceps"],
+  "Row":                         ["Back", "Biceps"],
+  "Lateral Raise":               ["Shoulders"],
+  "Cable Pullover":              ["Back", "Triceps"],
+  "Tricep Pushdown":             ["Triceps"],
+  "Preacher Curl":               ["Biceps"],
+  "Back Squat":                  ["Quads", "Glutes"],
+  "Leg Press":                   ["Quads", "Glutes"],
+  "Leg Extension":               ["Quads"],
+  "Leg Curl":                    ["Hamstrings"],
+  "Seated Calf Raise":           ["Calves"],
+  "Standing Barbell Press":      ["Shoulders", "Triceps"],
+  "Cable Lateral Raise":         ["Shoulders"],
+  "Close Grip Bench Press":      ["Triceps", "Chest"],
+  "Neutral Grip Lat Pulldown":   ["Back", "Biceps"],
+  "Overhead Cable Extension":    ["Triceps"],
+  "Hammer Curl":                 ["Biceps"],
+  "Wrist Extension":             ["Forearms"],
+  "Reverse Curl":                ["Biceps", "Forearms"],
+  "Rope Tricep Pushdown":        ["Triceps"],
+  "Close Grip Push Up":          ["Triceps", "Chest"],
+};
+
+const MUSCLE_ORDER = ["Chest", "Back", "Shoulders", "Triceps", "Biceps", "Forearms", "Quads", "Hamstrings", "Glutes", "Calves"];
+
+// Recommended weekly sets per muscle group (minimum effective volume)
+const RECOMMENDED_SETS = {
+  Chest: 10, Back: 12, Shoulders: 12, Triceps: 10, Biceps: 10,
+  Forearms: 4, Quads: 12, Hamstrings: 10, Glutes: 10, Calves: 8,
+};
+
+function getWeeklyVolume(logs, weekKey) {
+  const volume = {};
+  MUSCLE_ORDER.forEach(m => volume[m] = 0);
+  DAYS.forEach(day => {
+    const dayLog = logs?.[weekKey]?.[day.id];
+    if (!dayLog) return;
+    day.exercises.forEach((ex, idx) => {
+      const sets = dayLog[idx]?.sets || [];
+      const loggedSets = sets.filter(s => parseFloat(s.weight) > 0 || parseInt(s.reps) > 0).length;
+      if (loggedSets === 0) return;
+      const muscles = MUSCLE_GROUPS[ex.name] || [];
+      muscles.forEach(m => { if (volume[m] !== undefined) volume[m] += loggedSets; });
+    });
+    // Circuit
+    if (day.circuit && logs?.[weekKey]?.[day.id + "_c"]) {
+      const circLog = logs[weekKey][day.id + "_c"];
+      day.circuit.exercises.forEach((ex, ei) => {
+        const loggedRounds = circLog.filter(r => parseFloat(r[ei]?.weight) > 0 || parseInt(r[ei]?.reps) > 0).length;
+        if (loggedRounds === 0) return;
+        const muscles = MUSCLE_GROUPS[ex.name] || [];
+        muscles.forEach(m => { if (volume[m] !== undefined) volume[m] += loggedRounds; });
+      });
+    }
+  });
+  return volume;
+}
+
+function isPB(exName, dayId, newWeight, newReps, logs, currentWeekKey) {
+  if (!newWeight || !newReps) return false;
+  const newEpley = newWeight * (1 + newReps / 30);
+  for (const wk of Object.keys(logs)) {
+    if (wk === currentWeekKey) continue;
+    const sets = logs[wk]?.[dayId]?.find(e => e.name === exName)?.sets || [];
+    for (const s of sets) {
+      const w = parseFloat(s.weight), r = parseInt(s.reps);
+      if (w > 0 && r > 0 && w * (1 + r / 30) >= newEpley) return false;
+    }
+  }
+  return true;
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -373,8 +455,11 @@ export default function App() {
   const [importText, setImportText] = useState("");
   const [importStatus, setImportStatus] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
-  const [saveFailed, setSaveFailed] = useState(false); // for split-state circuit/regular error
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [swaps, setSwaps] = useState({}); // { "day1-exIdx": { name, repMin, repMax, type } }
+  const [swapModal, setSwapModal] = useState(null); // { dayId, exIdx }
+  const [swapInput, setSwapInput] = useState("");
 
   useEffect(() => {
     storageGet().then(data => {
@@ -462,9 +547,14 @@ export default function App() {
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 60, lineHeight: 1, letterSpacing: 3 }}>LIFT<span style={{ color: C.accent }}>.</span></div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 10 }}>{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</div>
         </div>
-        <button className="btn" onClick={() => setView("chart")} style={{ width: "100%", padding: "12px 0", marginBottom: 12, background: C.card, border: `1px solid ${C.borderBright}`, color: C.textSub, fontSize: 11, letterSpacing: 3, textTransform: "uppercase", borderRadius: 8 }}>
-          Progress Charts
-        </button>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+          <button className="btn" onClick={() => setView("chart")} style={{ padding: "12px 0", background: C.card, border: `1px solid ${C.borderBright}`, color: C.textSub, fontSize: 11, letterSpacing: 3, textTransform: "uppercase", borderRadius: 8 }}>
+            Charts
+          </button>
+          <button className="btn" onClick={() => setView("volume")} style={{ padding: "12px 0", background: C.card, border: `1px solid ${C.borderBright}`, color: C.textSub, fontSize: 11, letterSpacing: 3, textTransform: "uppercase", borderRadius: 8 }}>
+            Volume
+          </button>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
           <button className="btn" onClick={() => setView("export")} style={{ padding: "10px 0", background: C.card, border: `1px solid ${C.borderBright}`, color: C.muted, fontSize: 10, letterSpacing: 2, textTransform: "uppercase", borderRadius: 8 }}>Export</button>
           <button className="btn" onClick={() => setView("import")} style={{ padding: "10px 0", background: C.card, border: `1px solid ${C.borderBright}`, color: C.muted, fontSize: 10, letterSpacing: 2, textTransform: "uppercase", borderRadius: 8 }}>Import</button>
@@ -507,31 +597,46 @@ export default function App() {
     const prevPrevCircuitLog = getPrevPrevCircuitLog(activeDay);
 
     const renderExercise = (ex, realIdx) => {
-      const prevEx = prevLog?.find(e => e.name === ex.name);
-      const prevPrevEx = prevPrevLog?.find(e => e.name === ex.name);
-      const baseTarget = getBaseTarget(prevEx?.sets, ex, prevPrevEx?.sets);
+      const swapKey = `${activeDay}-${realIdx}`;
+      const swapped = swaps[swapKey];
+      const activeEx = swapped || ex;
+      const prevEx = prevLog?.find(e => e.name === activeEx.name);
+      const prevPrevEx = prevPrevLog?.find(e => e.name === activeEx.name);
+      const baseTarget = getBaseTarget(prevEx?.sets, activeEx, prevPrevEx?.sets);
       const currentSets = log[realIdx]?.sets || [];
-      const setTargets = buildAllSetTargets(currentSets, baseTarget, ex);
+      const setTargets = buildAllSetTargets(currentSets, baseTarget, activeEx);
       const bestPrev = prevEx ? getBestSet(prevEx.sets) : null;
-      const hasAnyPrevData = !!bestPrev;
 
       return (
         <div key={ex.name} style={{ marginTop: 24, paddingBottom: 20, borderBottom: `1px solid #44445a` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
-                {baseTarget?.progressed && baseTarget.progressType === "weight" && <span style={{ fontSize: 9, background: LG.badge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+{weightIncrement(ex.type)}kg ↑</span>}
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{activeEx.name}</div>
+                {swapped && <span style={{ fontSize: 9, background: "#8844cc", color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>Swapped</span>}
+                {baseTarget?.progressed && baseTarget.progressType === "weight" && <span style={{ fontSize: 9, background: LG.badge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+{weightIncrement(activeEx.type)}kg ↑</span>}
                 {baseTarget?.progressed && baseTarget.progressType === "reps" && <span style={{ fontSize: 9, background: LG.repBadge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+1 rep ↑</span>}
-                {baseTarget?.deload && <span style={{ fontSize: 9, background: "#cc6600", color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>⚠ Deload — 85%</span>}
+                {baseTarget?.deload && <span style={{ fontSize: 9, background: "#cc6600", color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>⚠ Deload</span>}
               </div>
               <div style={{ fontSize: 11, color: "#ddddee" }}>
-                {ex.topSet ? "Top set + back-off · " : ""}{ex.repMin}–{ex.repMax} reps
-                {ex.type === "shoulder_raise" && <span style={{ color: "#00d4ff" }}> · rep-first</span>}
+                {activeEx.topSet ? "Top set + back-off · " : ""}{activeEx.repMin}–{activeEx.repMax} reps
+                {activeEx.type === "shoulder_raise" && <span style={{ color: "#00d4ff" }}> · rep-first</span>}
+                {swapped && <span style={{ color: "#aa88ff" }}> · replaces {ex.name}</span>}
               </div>
             </div>
-            <button className="btn" onClick={() => { setChartEx(ex.name); setChartDayId(activeDay); setView("chart"); }}
-              style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", padding: "5px 10px", border: `1px solid ${LG.borderStrong}`, color: LG.label, borderRadius: 5, whiteSpace: "nowrap", background: LG.surface }}>Chart</button>
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <button className="btn" onClick={() => {
+                if (swapped) {
+                  const s = { ...swaps }; delete s[swapKey]; setSwaps(s);
+                } else {
+                  setSwapModal({ dayId: activeDay, exIdx: realIdx }); setSwapInput("");
+                }
+              }} style={{ fontSize: 9, letterSpacing: 1, textTransform: "uppercase", padding: "5px 8px", border: `1px solid ${swapped ? "#8844cc" : LG.borderStrong}`, color: swapped ? "#bb88ff" : LG.label, borderRadius: 5, background: LG.surface }}>
+                {swapped ? "Restore" : "Swap"}
+              </button>
+              <button className="btn" onClick={() => { setChartEx(activeEx.name); setChartDayId(activeDay); setView("chart"); }}
+                style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", padding: "5px 10px", border: `1px solid ${LG.borderStrong}`, color: LG.label, borderRadius: 5, background: LG.surface }}>Chart</button>
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "26px 90px 80px 1fr", gap: 6, padding: "0 6px", marginBottom: 5 }}>
@@ -541,18 +646,20 @@ export default function App() {
           </div>
 
           {currentSets.map((s, si) => {
-            const isTop = ex.topSet && si === 0;
+            const isTop = activeEx.topSet && si === 0;
             const target = setTargets[si];
             const actualW = parseFloat(s.weight), actualR = parseInt(s.reps);
             const logged = s.weight !== "" && s.reps !== "" && !isNaN(actualW) && !isNaN(actualR);
             const missed = logged && target && target.weight > 0 && (actualW < target.weight || actualR < target.reps);
             const hit = logged && target && target.weight > 0 && actualW >= target.weight && actualR >= target.reps;
+            const pb = logged && isPB(activeEx.name, activeDay, actualW, actualR, logs, weekKey);
             return (
               <div key={si} style={{ marginBottom: 7 }}>
+                {pb && <div style={{ fontSize: 9, color: "#ffcc00", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 700 }}>🏆 Personal Best!</div>}
                 {target?.recalc && <div style={{ fontSize: 9, color: "#00d4ff", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 600 }}>↻ recalculated</div>}
                 <div style={{ display: "grid", gridTemplateColumns: "26px 90px 80px 1fr", gap: 6, padding: "10px 6px", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
-                  background: hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
-                  border: `1.5px solid ${hit ? LG.hitBorder : missed ? LG.missBorder : isTop ? LG.topBorder : LG.border}` }}>
+                  background: pb ? "#2a2400" : hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
+                  border: `1.5px solid ${pb ? "#ffcc00" : hit ? LG.hitBorder : missed ? LG.missBorder : isTop ? LG.topBorder : LG.border}` }}>
                   <div style={{ fontSize: 12, color: isTop ? LG.topLabel : LG.label, alignSelf: "center", fontWeight: 700, textAlign: "center" }}>{isTop ? "T" : si + 1}</div>
                   <div style={{ alignSelf: "center" }}>
                     {target && target.weight > 0 ? (
@@ -723,6 +830,82 @@ export default function App() {
             })}
             {/* Circuit */}
             {renderCircuit()}
+          </div>
+
+          {/* Swap modal */}
+          {swapModal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+              <div style={{ width: "100%", background: LG.headerBg, borderRadius: "16px 16px 0 0", padding: 24 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: "#fff", marginBottom: 6 }}>Swap Exercise</div>
+                <div style={{ fontSize: 11, color: "#aaaacc", marginBottom: 16 }}>
+                  Replaces {DAYS.find(d => d.id === swapModal.dayId)?.exercises[swapModal.exIdx]?.name} for this session only.
+                </div>
+                <input type="text" placeholder="Exercise name…" value={swapInput} onChange={e => setSwapInput(e.target.value)}
+                  style={{ width: "100%", background: "#2a2a38", border: "1px solid #555570", borderRadius: 8, padding: "12px 14px", color: "#fff", fontSize: 14, fontFamily: "'DM Mono', monospace", marginBottom: 12, outline: "none" }} />
+                <div style={{ fontSize: 10, color: "#aaaacc", marginBottom: 16 }}>Rep range will match the original exercise. Targets based on swap history.</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <button className="btn" onClick={() => setSwapModal(null)}
+                    style={{ padding: "12px 0", background: "#2a2a38", border: "1px solid #555570", color: "#ccccdd", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", borderRadius: 8 }}>
+                    Cancel
+                  </button>
+                  <button className="btn" onClick={() => {
+                    if (!swapInput.trim()) return;
+                    const orig = DAYS.find(d => d.id === swapModal.dayId)?.exercises[swapModal.exIdx];
+                    setSwaps(s => ({ ...s, [`${swapModal.dayId}-${swapModal.exIdx}`]: { ...orig, name: swapInput.trim() } }));
+                    setSwapModal(null);
+                  }} style={{ padding: "12px 0", background: C.accent, color: "#000", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", borderRadius: 8, fontWeight: 700 }}>
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── VOLUME ───────────────────────────────────────────────────────────────────
+  if (view === "volume") {
+    const weekKey = getWeekKey(weekOffset);
+    const volume = getWeeklyVolume(logs, weekKey);
+    return (
+      <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'DM Mono', monospace", color: C.text }}>
+        <style>{css}</style>
+        <div style={{ maxWidth: 480, margin: "0 auto", padding: "24px 20px 80px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+            <button className="btn" onClick={() => setView("home")} style={{ color: C.muted, fontSize: 28, padding: "8px 16px 8px 0", minWidth: 44 }}>←</button>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 30, letterSpacing: 2 }}>Weekly Volume</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 28 }}>
+            <button className="btn" onClick={() => setWeekOffset(w => w - 1)} style={{ fontSize: 11, padding: "5px 14px", background: C.card, border: `1px solid ${C.borderBright}`, color: C.muted, borderRadius: 6 }}>← Prev</button>
+            <div style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: weekOffset === 0 ? "#000" : "#fff", background: weekOffset === 0 ? C.accent : "#3a3a50", borderRadius: 6, padding: "6px 0" }}>{weekLabel}</div>
+            <button className="btn" onClick={() => setWeekOffset(w => Math.min(0, w + 1))} style={{ fontSize: 11, padding: "5px 14px", background: C.card, border: `1px solid ${C.borderBright}`, color: C.muted, borderRadius: 6 }}>Next →</button>
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {MUSCLE_ORDER.map(muscle => {
+              const sets = volume[muscle] || 0;
+              const rec = RECOMMENDED_SETS[muscle] || 10;
+              const pct = Math.min(sets / rec, 1);
+              const over = sets >= rec;
+              return (
+                <div key={muscle} style={{ background: C.card, border: `1px solid ${over ? C.accentDim : C.border}`, borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{muscle}</div>
+                    <div style={{ fontSize: 12, color: over ? C.accent : C.muted, fontWeight: over ? 700 : 400 }}>
+                      {sets} / {rec} sets {over ? "✓" : ""}
+                    </div>
+                  </div>
+                  <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct * 100}%`, background: over ? C.accent : "#5566aa", borderRadius: 3, transition: "width 0.3s ease" }} />
+                  </div>
+                  {sets === 0 && <div style={{ fontSize: 10, color: C.dimmed, marginTop: 6 }}>Not trained this week</div>}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 20, lineHeight: 1.6 }}>
+            Based on logged sets this week. Recommended minimums shown for reference.
           </div>
         </div>
       </div>
