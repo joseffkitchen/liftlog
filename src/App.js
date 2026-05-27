@@ -273,9 +273,8 @@ function buildAllSetTargets(currentSets, baseTarget, ex) {
   let backOffTarget = baseTarget;
 
   if (topW > 0 && topR > 0) {
-    // Top set logged — back-off is 90% of actual top set weight, same reps as top set
     const backOffWeight = roundToLoadable(topW * 0.9, ex.name);
-    backOffTarget = { weight: backOffWeight, reps: topR };
+    backOffTarget = { weight: backOffWeight, reps: topR + 2 };
   }
 
   return currentSets.map((s, si) => {
@@ -392,12 +391,11 @@ const MUSCLE_GROUPS = {
   "Close Grip Push Up":          ["Triceps", "Chest"],
 };
 
-const MUSCLE_ORDER = ["Chest", "Back", "Shoulders", "Triceps", "Biceps", "Forearms", "Quads", "Hamstrings", "Glutes", "Calves"];
+const MUSCLE_ORDER = ["Chest", "Back", "Shoulders", "Triceps", "Biceps", "Quads", "Hamstrings", "Glutes", "Calves"];
 
-// Recommended weekly sets per muscle group (minimum effective volume)
 const RECOMMENDED_SETS = {
   Chest: 10, Back: 12, Shoulders: 12, Triceps: 10, Biceps: 10,
-  Forearms: 4, Quads: 12, Hamstrings: 10, Glutes: 10, Calves: 8,
+  Quads: 12, Hamstrings: 10, Glutes: 10, Calves: 8,
 };
 
 function getWeeklyVolume(logs, weekKey) {
@@ -654,7 +652,7 @@ export default function App() {
             const pb = logged && isPB(activeEx.name, activeDay, actualW, actualR, logs, weekKey);
             return (
               <div key={si} style={{ marginBottom: 7 }}>
-                {pb && <div style={{ fontSize: 9, color: "#ffcc00", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 700 }}>🏆 Personal Best!</div>}
+                {pb && <div style={{ fontSize: 9, color: "#fff", background: "#aa8800", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 700, padding: "3px 8px", borderRadius: 4, display: "inline-block", marginLeft: 30 }}>🏆 Personal Best!</div>}
                 {target?.recalc && <div style={{ fontSize: 9, color: "#00d4ff", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 600 }}>↻ recalculated</div>}
                 <div style={{ display: "grid", gridTemplateColumns: "26px 90px 80px 1fr", gap: 6, padding: "10px 6px", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
                   background: pb ? "#1a1400" : hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
@@ -868,6 +866,27 @@ export default function App() {
   if (view === "volume") {
     const weekKey = getWeekKey(weekOffset);
     const volume = getWeeklyVolume(logs, weekKey);
+    const [expandedMuscle, setExpandedMuscle] = useState(null);
+
+    // Get exercises for a muscle group
+    const getExercisesForMuscle = (muscle) => {
+      const result = [];
+      DAYS.forEach(day => {
+        day.exercises.forEach(ex => {
+          if ((MUSCLE_GROUPS[ex.name] || []).includes(muscle)) {
+            result.push({ name: ex.name, day: day.label });
+          }
+        });
+        if (day.circuit) {
+          day.circuit.exercises.forEach(ex => {
+            if ((MUSCLE_GROUPS[ex.name] || []).includes(muscle)) {
+              result.push({ name: ex.name, day: day.label });
+            }
+          });
+        }
+      });
+      return result;
+    };
     return (
       <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'DM Mono', monospace", color: C.text }}>
         <style>{css}</style>
@@ -887,18 +906,36 @@ export default function App() {
               const rec = RECOMMENDED_SETS[muscle] || 10;
               const pct = Math.min(sets / rec, 1);
               const over = sets >= rec;
+              const expanded = expandedMuscle === muscle;
+              const exercises = getExercisesForMuscle(muscle);
               return (
-                <div key={muscle} style={{ background: C.card, border: `1px solid ${over ? C.accentDim : C.border}`, borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{muscle}</div>
-                    <div style={{ fontSize: 12, color: over ? C.accent : C.muted, fontWeight: over ? 700 : 400 }}>
-                      {sets} / {rec} sets {over ? "✓" : ""}
+                <div key={muscle} style={{ background: C.card, border: `1px solid ${over ? C.accentDim : C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "14px 16px", cursor: "pointer" }} onClick={() => setExpandedMuscle(expanded ? null : muscle)}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{muscle}</div>
+                        <div style={{ fontSize: 10, color: C.muted }}>{expanded ? "▲" : "▼"}</div>
+                      </div>
+                      <div style={{ fontSize: 12, color: over ? C.accent : C.muted, fontWeight: over ? 700 : 400 }}>
+                        {sets} / {rec} sets {over ? "✓" : ""}
+                      </div>
                     </div>
+                    <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct * 100}%`, background: over ? C.accent : "#5566aa", borderRadius: 3 }} />
+                    </div>
+                    {sets === 0 && <div style={{ fontSize: 10, color: C.dimmed, marginTop: 6 }}>Not trained this week</div>}
                   </div>
-                  <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${pct * 100}%`, background: over ? C.accent : "#5566aa", borderRadius: 3, transition: "width 0.3s ease" }} />
-                  </div>
-                  {sets === 0 && <div style={{ fontSize: 10, color: C.dimmed, marginTop: 6 }}>Not trained this week</div>}
+                  {expanded && (
+                    <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 16px 14px" }}>
+                      <div style={{ fontSize: 10, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Exercises</div>
+                      {exercises.map((ex, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < exercises.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                          <div style={{ fontSize: 12, color: C.textSub }}>{ex.name}</div>
+                          <div style={{ fontSize: 10, color: C.muted }}>{ex.day}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
