@@ -379,10 +379,24 @@ const MUSCLE_GROUPS = {
 
 const MUSCLE_ORDER = ["Chest", "Back", "Shoulders", "Triceps", "Biceps", "Quads", "Hamstrings", "Glutes", "Calves"];
 
-const RECOMMENDED_SETS = {
-  Chest: 10, Back: 12, Shoulders: 12, Triceps: 10, Biceps: 10,
-  Quads: 12, Hamstrings: 10, Glutes: 10, Calves: 8,
-};
+// Calculate max possible sets per muscle from the programme itself
+function getProgrammeMaxSets() {
+  const max = {};
+  MUSCLE_ORDER.forEach(m => max[m] = 0);
+  DAYS.forEach(day => {
+    day.exercises.forEach(ex => {
+      const muscles = MUSCLE_GROUPS[ex.name] || [];
+      muscles.forEach(m => { if (max[m] !== undefined) max[m] += ex.sets; });
+    });
+    if (day.circuit) {
+      day.circuit.exercises.forEach(ex => {
+        const muscles = MUSCLE_GROUPS[ex.name] || [];
+        muscles.forEach(m => { if (max[m] !== undefined) max[m] += day.circuit.rounds; });
+      });
+    }
+  });
+  return max;
+}
 
 function getWeeklyVolume(logs, weekKey) {
   const volume = {};
@@ -853,6 +867,7 @@ export default function App() {
   if (view === "volume") {
     const weekKey = getWeekKey(weekOffset);
     const volume = getWeeklyVolume(logs, weekKey);
+    const programmeMax = getProgrammeMaxSets();
 
     // Get exercises for a muscle group
     const getExercisesForMuscle = (muscle) => {
@@ -889,25 +904,25 @@ export default function App() {
           <div style={{ display: "grid", gap: 10 }}>
             {MUSCLE_ORDER.map(muscle => {
               const sets = volume[muscle] || 0;
-              const rec = RECOMMENDED_SETS[muscle] || 10;
-              const pct = Math.min(sets / rec, 1);
-              const over = sets >= rec;
+              const max = programmeMax[muscle] || 0;
+              const pct = max > 0 ? Math.min(sets / max, 1) : 0;
+              const complete = max > 0 && sets >= max;
               const expanded = expandedMuscle === muscle;
               const exercises = getExercisesForMuscle(muscle);
               return (
-                <div key={muscle} style={{ background: C.card, border: `1px solid ${over ? C.accentDim : C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                <div key={muscle} style={{ background: C.card, border: `1px solid ${complete ? C.accentDim : C.border}`, borderRadius: 10, overflow: "hidden" }}>
                   <div style={{ padding: "14px 16px", cursor: "pointer" }} onClick={() => setExpandedMuscle(expanded ? null : muscle)}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{muscle}</div>
                         <div style={{ fontSize: 10, color: C.muted }}>{expanded ? "▲" : "▼"}</div>
                       </div>
-                      <div style={{ fontSize: 12, color: over ? C.accent : C.muted, fontWeight: over ? 700 : 400 }}>
-                        {sets} / {rec} sets {over ? "✓" : ""}
+                      <div style={{ fontSize: 12, color: complete ? C.accent : C.muted, fontWeight: complete ? 700 : 400 }}>
+                        {sets} / {max} sets {complete ? "✓" : ""}
                       </div>
                     </div>
                     <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct * 100}%`, background: over ? C.accent : "#5566aa", borderRadius: 3 }} />
+                      <div style={{ height: "100%", width: `${pct * 100}%`, background: complete ? C.accent : "#5566aa", borderRadius: 3 }} />
                     </div>
                     {sets === 0 && <div style={{ fontSize: 10, color: C.dimmed, marginTop: 6 }}>Not trained this week</div>}
                   </div>
@@ -927,7 +942,7 @@ export default function App() {
             })}
           </div>
           <div style={{ fontSize: 10, color: C.muted, marginTop: 20, lineHeight: 1.6 }}>
-            Based on logged sets this week. Recommended minimums shown for reference.
+            Target is the maximum sets your programme delivers for each muscle group across all 4 days.
           </div>
         </div>
       </div>
