@@ -273,10 +273,9 @@ function buildAllSetTargets(currentSets, baseTarget, ex) {
   let backOffTarget = baseTarget;
 
   if (topW > 0 && topR > 0) {
-    // Top set logged — back-off is 90% of actual top set weight
+    // Top set logged — back-off is 90% of actual top set weight, same reps as top set
     const backOffWeight = roundToLoadable(topW * 0.9, ex.name);
-    const backOffReps = Math.round((ex.repMin + ex.repMax) / 2);
-    backOffTarget = { weight: backOffWeight, reps: backOffReps };
+    backOffTarget = { weight: backOffWeight, reps: topR };
   }
 
   return currentSets.map((s, si) => {
@@ -658,7 +657,7 @@ export default function App() {
                 {pb && <div style={{ fontSize: 9, color: "#ffcc00", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 700 }}>🏆 Personal Best!</div>}
                 {target?.recalc && <div style={{ fontSize: 9, color: "#00d4ff", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 600 }}>↻ recalculated</div>}
                 <div style={{ display: "grid", gridTemplateColumns: "26px 90px 80px 1fr", gap: 6, padding: "10px 6px", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
-                  background: pb ? "#2a2400" : hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
+                  background: pb ? "#1a1400" : hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
                   border: `1.5px solid ${pb ? "#ffcc00" : hit ? LG.hitBorder : missed ? LG.missBorder : isTop ? LG.topBorder : LG.border}` }}>
                   <div style={{ fontSize: 12, color: isTop ? LG.topLabel : LG.label, alignSelf: "center", fontWeight: 700, textAlign: "center" }}>{isTop ? "T" : si + 1}</div>
                   <div style={{ alignSelf: "center" }}>
