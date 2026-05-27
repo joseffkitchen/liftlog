@@ -173,7 +173,7 @@ const DAYS = [
       rounds: 3,
       rest: "90s",
       exercises: [
-        { name: "Reverse Curl", repMin: 15, repMax: 20, type: "accessory" },
+        { name: "Hammer Curl", repMin: 15, repMax: 20, type: "accessory" },
         { name: "Rope Tricep Pushdown", repMin: 15, repMax: 20, type: "accessory" },
         { name: "Close Grip Push Up", repMin: 15, repMax: 20, type: "bodyweight", noWeight: true },
       ],
@@ -639,7 +639,7 @@ export default function App() {
             const pb = logged && isPB(activeEx.name, activeDay, actualW, actualR, logs, weekKey);
             return (
               <div key={si} style={{ marginBottom: 7 }}>
-                {pb && <div style={{ fontSize: 9, color: "#fff", background: "#aa8800", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 700, padding: "3px 8px", borderRadius: 4, display: "inline-block", marginLeft: 30 }}>🏆 Personal Best!</div>}
+                {pb && <span style={{ fontSize: 9, color: "#ffffff", background: "#cc8800", padding: "3px 10px", borderRadius: 4, display: "inline-block", marginLeft: 26, marginBottom: 4, textTransform: "uppercase", fontWeight: 700, letterSpacing: 1 }}>🏆 Personal Best!</span>}
                 {target?.recalc && <div style={{ fontSize: 9, color: "#00d4ff", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 600 }}>↻ recalculated</div>}
                 <div style={{ display: "grid", gridTemplateColumns: "26px 90px 80px 1fr", gap: 6, padding: "10px 6px", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
                   background: pb ? "#1a1400" : hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
