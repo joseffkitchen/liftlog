@@ -279,22 +279,8 @@ function buildAllSetTargets(currentSets, baseTarget, ex) {
 
   return currentSets.map((s, si) => {
     if (si === 0) return baseTarget;
-
-    const prev = currentSets[si - 1];
-    const prevW = parseFloat(prev?.weight);
-    const prevR = parseInt(prev?.reps);
-
-    if (!prevW || !prevR) return backOffTarget;
-
-    // Hit the back-off target — keep same
-    if (backOffTarget && prevW >= backOffTarget.weight && prevR >= backOffTarget.reps) {
-      return backOffTarget;
-    }
-
-    // Missed — recalculate from what they lifted
-    const orm = prevW * (1 + prevR / 30);
-    const targetReps = Math.round((ex.repMin + ex.repMax) / 2);
-    return { weight: roundToLoadable(orm / (1 + targetReps / 30), ex.name), reps: targetReps, recalc: true };
+    // Back-off sets always get the same back-off target — no recalculation between them
+    return backOffTarget;
   });
 }
 
@@ -454,9 +440,10 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [saveFailed, setSaveFailed] = useState(false);
-  const [swaps, setSwaps] = useState({}); // { "day1-exIdx": { name, repMin, repMax, type } }
-  const [swapModal, setSwapModal] = useState(null); // { dayId, exIdx }
+  const [swaps, setSwaps] = useState({});
+  const [swapModal, setSwapModal] = useState(null);
   const [swapInput, setSwapInput] = useState("");
+  const [expandedMuscle, setExpandedMuscle] = useState(null);
 
   useEffect(() => {
     storageGet().then(data => {
@@ -866,7 +853,6 @@ export default function App() {
   if (view === "volume") {
     const weekKey = getWeekKey(weekOffset);
     const volume = getWeeklyVolume(logs, weekKey);
-    const [expandedMuscle, setExpandedMuscle] = useState(null);
 
     // Get exercises for a muscle group
     const getExercisesForMuscle = (muscle) => {
