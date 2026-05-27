@@ -559,7 +559,7 @@ export default function App() {
                       <>
                         <div style={{ fontSize: 14, color: hit ? LG.accentText : missed ? "#cc2222" : LG.accentText, fontWeight: 700 }}>{target.weight}kg</div>
                         <div style={{ fontSize: 11, color: hit ? LG.accent : missed ? "#ee4444" : LG.accent }}>{target.reps} reps</div>
-                        {BARBELL_EXERCISES.includes(ex.name) && si === 0 && <PlateVisualiser weight={target.weight} />}
+                        {BARBELL_EXERCISES.includes(ex.name) && <PlateVisualiser weight={target.weight} />}
                       </>
                     ) : target && target.weight === 0 ? (
                       <div style={{ fontSize: 11, color: hit ? LG.accent : missed ? "#ee4444" : LG.accent }}>{target.reps} reps</div>
