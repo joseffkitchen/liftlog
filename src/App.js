@@ -117,10 +117,28 @@ function getBestSet(sets) {
 
 function shouldProgress(sets, repMax) {
   if (!sets) return false;
+  // All sets must be logged before progression fires
+  const allLogged = sets.every(s => parseFloat(s.weight) > 0 && parseInt(s.reps) > 0);
+  if (!allLogged) return false;
   return sets.filter(s => parseInt(s.reps) >= repMax && parseFloat(s.weight) > 0).length >= 2;
 }
 
-function getBaseTarget(prevSets, ex) {
+// Check if stuck — missed target 2 weeks in a row
+function isPlateaued(prevSets, prevPrevSets, repMax) {
+  if (!prevSets || !prevPrevSets) return false;
+  const missedLastWeek = !shouldProgress(prevSets, repMax) && prevSets.every(s => parseFloat(s.weight) > 0 && parseInt(s.reps) > 0);
+  const missedWeekBefore = !shouldProgress(prevPrevSets, repMax) && prevPrevSets.every(s => parseFloat(s.weight) > 0 && parseInt(s.reps) > 0);
+  return missedLastWeek && missedWeekBefore;
+}
+
+function getDeloadTarget(prevSets, ex) {
+  const best = getBestSet(prevSets);
+  if (!best || !parseFloat(best.weight)) return null;
+  const deloadWeight = roundToLoadable(parseFloat(best.weight) * 0.85, ex.name);
+  return { weight: deloadWeight, reps: ex.repMin, progressed: false, progressType: null, deload: true };
+}
+
+function getBaseTarget(prevSets, ex, prevPrevSets) {
   if (ex.noProgression) return { weight: ex.fixedWeight, reps: ex.repMin, progressed: false, progressType: null };
   if (!prevSets) return null;
   const best = getBestSet(prevSets);
@@ -129,6 +147,11 @@ function getBaseTarget(prevSets, ex) {
   if (!weight && ex.type !== "bodyweight") return null;
   const prevReps = parseInt(best.reps) || ex.repMin;
   const progress = shouldProgress(prevSets, ex.repMax);
+
+  // Check for plateau — 2 weeks missed → suggest deload
+  if (isPlateaued(prevSets, prevPrevSets, ex.repMax)) {
+    return getDeloadTarget(prevSets, ex);
+  }
 
   if (ex.type === "shoulder_raise") {
     if (progress) {
@@ -267,6 +290,8 @@ export default function App() {
   const [importText, setImportText] = useState("");
   const [importStatus, setImportStatus] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
+  const [saveFailed, setSaveFailed] = useState(false); // for split-state circuit/regular error
 
   useEffect(() => {
     storageGet().then(data => {
@@ -277,11 +302,21 @@ export default function App() {
 
   const persist = async (newLogs) => {
     setLogs(newLogs);
-    await storageSet(newLogs);
+    setSaveStatus("saving");
+    setSaveFailed(false);
+    try {
+      await storageSet(newLogs);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus(null), 2000);
+    } catch {
+      setSaveStatus("error");
+      setSaveFailed(true);
+    }
   };
 
   const weekKey = getWeekKey(weekOffset);
   const prevWeekKey = getWeekKey(weekOffset - 1);
+  const prevPrevWeekKey = getWeekKey(weekOffset - 2);
   const weekLabel = weekOffset === 0 ? "This week" : weekOffset === -1 ? "Last week" : `${Math.abs(weekOffset)}w ago`;
 
   const getLog = dayId => {
@@ -289,6 +324,7 @@ export default function App() {
     return logs?.[weekKey]?.[dayId] || emptyLog(d.exercises);
   };
   const getPrevLog = dayId => logs?.[prevWeekKey]?.[dayId] || null;
+  const getPrevPrevLog = dayId => logs?.[prevPrevWeekKey]?.[dayId] || null;
   const getCircuitLog = dayId => {
     const d = DAYS.find(d => d.id === dayId);
     if (!d.circuit) return null;
@@ -298,6 +334,11 @@ export default function App() {
     const d = DAYS.find(d => d.id === dayId);
     if (!d.circuit) return null;
     return logs?.[prevWeekKey]?.[dayId + "_c"] || null;
+  };
+  const getPrevPrevCircuitLog = dayId => {
+    const d = DAYS.find(d => d.id === dayId);
+    if (!d.circuit) return null;
+    return logs?.[prevPrevWeekKey]?.[dayId + "_c"] || null;
   };
 
   const updateSet = (dayId, exIdx, si, field, value) => {
@@ -348,18 +389,20 @@ export default function App() {
         <div style={{ display: "grid", gap: 12 }}>
           {DAYS.map(day => {
             const log = logs?.[weekKey]?.[day.id];
+            // At least one exercise has at least one set logged
+            const started = log?.some(ex => ex.sets.some(s => s.weight || s.reps));
             const done = log?.every(ex => ex.sets.some(s => s.weight || s.reps));
             return (
               <div key={day.id} className="card-tap" onClick={() => { setActiveDay(day.id); setView("log"); }}
-                style={{ background: C.card, border: `1px solid ${done ? C.accentDim : C.border}`, borderRadius: 12, padding: "20px 22px" }}>
+                style={{ background: C.card, border: `1px solid ${done ? C.accentDim : started ? "#7070a0" : C.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontSize: 10, letterSpacing: 3, color: C.muted, textTransform: "uppercase", marginBottom: 5 }}>{day.label}</div>
                     <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2 }}>{day.title}</div>
                     <div style={{ fontSize: 11, color: C.dimmed, marginTop: 4 }}>{day.exercises.length + (day.circuit ? day.circuit.exercises.length : 0)} exercises</div>
                   </div>
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: done ? C.accent : C.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: done ? "#000" : C.muted, fontWeight: 700 }}>
-                    {done ? "✓" : "→"}
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: done ? C.accent : started ? "#3a3a50" : C.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: done ? "#000" : C.muted, fontWeight: 700 }}>
+                    {done ? "✓" : started ? "…" : "→"}
                   </div>
                 </div>
               </div>
@@ -375,15 +418,19 @@ export default function App() {
     const day = DAYS.find(d => d.id === activeDay);
     const log = getLog(activeDay);
     const prevLog = getPrevLog(activeDay);
+    const prevPrevLog = getPrevPrevLog(activeDay);
     const circuitLog = getCircuitLog(activeDay);
     const prevCircuitLog = getPrevCircuitLog(activeDay);
+    const prevPrevCircuitLog = getPrevPrevCircuitLog(activeDay);
 
     const renderExercise = (ex, realIdx) => {
       const prevEx = prevLog?.find(e => e.name === ex.name);
-      const baseTarget = getBaseTarget(prevEx?.sets, ex);
+      const prevPrevEx = prevPrevLog?.find(e => e.name === ex.name);
+      const baseTarget = getBaseTarget(prevEx?.sets, ex, prevPrevEx?.sets);
       const currentSets = log[realIdx]?.sets || [];
       const setTargets = buildAllSetTargets(currentSets, baseTarget, ex);
       const bestPrev = prevEx ? getBestSet(prevEx.sets) : null;
+      const hasAnyPrevData = !!bestPrev;
 
       return (
         <div key={ex.name} style={{ marginTop: 24, paddingBottom: 20, borderBottom: `1px solid #44445a` }}>
@@ -393,6 +440,7 @@ export default function App() {
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
                 {baseTarget?.progressed && baseTarget.progressType === "weight" && <span style={{ fontSize: 9, background: LG.badge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+{weightIncrement(ex.type)}kg ↑</span>}
                 {baseTarget?.progressed && baseTarget.progressType === "reps" && <span style={{ fontSize: 9, background: LG.repBadge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+1 rep ↑</span>}
+                {baseTarget?.deload && <span style={{ fontSize: 9, background: "#cc6600", color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>⚠ Deload — 85%</span>}
               </div>
               <div style={{ fontSize: 11, color: "#ddddee" }}>
                 {ex.topSet ? "Top set + back-off · " : ""}{ex.repMin}–{ex.repMax} reps
@@ -444,7 +492,14 @@ export default function App() {
           })}
 
           <div style={{ fontSize: 11, color: "#ccccdd", marginTop: 8, paddingLeft: 6 }}>
-            {bestPrev ? <>Last week: <span style={{ color: "#fff", fontWeight: 500 }}>{bestPrev.weight}kg × {bestPrev.reps} reps</span>{baseTarget?.progressed ? <span style={{ color: C.accent, fontWeight: 600 }}> · progressed ↑</span> : ""}</> : <span style={{ color: "#888899" }}>No previous data — log this session to start tracking</span>}
+            {bestPrev ? (
+              <>Last week: <span style={{ color: "#fff", fontWeight: 500 }}>{bestPrev.weight}kg × {bestPrev.reps} reps</span>
+              {baseTarget?.progressed ? <span style={{ color: C.accent, fontWeight: 600 }}> · progressed ↑</span> : ""}
+              {baseTarget?.deload ? <span style={{ color: "#cc6600", fontWeight: 600 }}> · missed 2 weeks — deload suggested</span> : ""}
+              </>
+            ) : (
+              <span style={{ color: "#888899" }}>First session — log to set your baseline</span>
+            )}
           </div>
         </div>
       );
@@ -483,13 +538,19 @@ export default function App() {
             ))}
           </div>
 
-          {/* Target row */}
+          {/* Target row — updates in real time from current session */}
           <div style={{ display: "grid", gridTemplateColumns: `52px repeat(${circuit.exercises.length}, 1fr)`, gap: 4, marginBottom: 10, padding: "0 2px" }}>
             <div style={{ fontSize: 9, color: "#aaaacc", textTransform: "uppercase", letterSpacing: 1, alignSelf: "center" }}>Target</div>
             {circuit.exercises.map((ex, i) => {
               const prevSets = prevCircuitLog ? prevCircuitLog.map(r => r[i]).filter(e => e && (parseFloat(e.weight) > 0 || e.reps)) : [];
+              const prevPrevSets = prevPrevCircuitLog ? prevPrevCircuitLog.map(r => r[i]).filter(e => e && (parseFloat(e.weight) > 0 || e.reps)) : [];
               const mappedPrev = prevSets.map(e => ({ weight: e.weight, reps: e.reps }));
-              const target = getBaseTarget(mappedPrev.length ? mappedPrev : null, ex);
+              const mappedPrevPrev = prevPrevSets.map(e => ({ weight: e.weight, reps: e.reps }));
+              // Use current session's first logged round if available (real-time like straight sets)
+              const firstRoundEntry = circuitLog[0]?.[i];
+              const firstW = parseFloat(firstRoundEntry?.weight);
+              const firstR = parseInt(firstRoundEntry?.reps);
+              let target = getBaseTarget(mappedPrev.length ? mappedPrev : null, ex, mappedPrevPrev.length ? mappedPrevPrev : null);
               return (
                 <div key={i} style={{ background: "#1e2208", border: `1px solid ${C.accentBorder}`, borderRadius: 6, padding: "6px 2px", textAlign: "center" }}>
                   {target ? (
@@ -539,11 +600,20 @@ export default function App() {
           <div style={{ padding: "20px 20px 14px", borderBottom: `2px solid ${LG.border}`, position: "sticky", top: 0, background: LG.headerBg, zIndex: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <button className="btn" onClick={() => setView("home")} style={{ color: "#aaaacc", fontSize: 28, padding: "8px 16px 8px 0", minWidth: 44 }}>←</button>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, letterSpacing: 3, color: C.accent, textTransform: "uppercase" }}>{day.label}</div>
                 <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, lineHeight: 1, color: "#fff" }}>{day.title}</div>
               </div>
+              {saveStatus === "saving" && <div style={{ fontSize: 10, color: "#aaaacc", letterSpacing: 1 }}>Saving…</div>}
+              {saveStatus === "saved" && <div style={{ fontSize: 10, color: C.accent, letterSpacing: 1, fontWeight: 700 }}>✓ Saved</div>}
+              {saveStatus === "error" && <div style={{ fontSize: 10, color: "#ee4444", letterSpacing: 1 }}>Save failed</div>}
             </div>
+            {saveFailed && (
+              <div style={{ background: "#3a0f0f", border: "1px solid #cc2020", borderRadius: 6, padding: "8px 12px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 11, color: "#ff8080" }}>⚠ Save failed — data stored locally. Tap to retry.</div>
+                <button className="btn" onClick={() => persist(logs)} style={{ fontSize: 10, color: "#ff8080", letterSpacing: 1, textTransform: "uppercase", marginLeft: 8 }}>Retry</button>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button className="btn" onClick={() => setWeekOffset(w => w - 1)} style={{ fontSize: 11, padding: "5px 14px", background: "#2a2a38", border: "1px solid #555570", color: "#ccccdd", borderRadius: 6 }}>← Prev</button>
               <div style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: weekOffset === 0 ? "#000" : "#fff", background: weekOffset === 0 ? C.accent : "#3a3a50", borderRadius: 6, padding: "6px 0", letterSpacing: 1 }}>{weekLabel}</div>
