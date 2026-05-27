@@ -636,7 +636,7 @@ export default function App() {
             const logged = s.weight !== "" && s.reps !== "" && !isNaN(actualW) && !isNaN(actualR);
             const missed = logged && target && target.weight > 0 && (actualW < target.weight || actualR < target.reps);
             const hit = logged && target && target.weight > 0 && actualW >= target.weight && actualR >= target.reps;
-            const pb = logged && isPB(activeEx.name, activeDay, actualW, actualR, logs, weekKey);
+            const pb = logged && bestPrev && isPB(activeEx.name, activeDay, actualW, actualR, logs, weekKey);
             return (
               <div key={si} style={{ marginBottom: 7 }}>
                 {pb && <span style={{ fontSize: 9, color: "#ffffff", background: "#cc8800", padding: "3px 10px", borderRadius: 4, display: "inline-block", marginLeft: 26, marginBottom: 4, textTransform: "uppercase", fontWeight: 700, letterSpacing: 1 }}>🏆 Personal Best!</span>}
