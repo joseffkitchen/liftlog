@@ -13,9 +13,7 @@ const DB_SIZES = [5, 6, 7.5, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34,
 
 function roundToLoadable(weight, exName) {
   if (BARBELL_EXERCISES.includes(exName)) {
-    // 20kg bar, add pairs of plates: 1.25, 2.5, 5, 10, 20, 25
-    // Valid total weights: 20 + any combination of pairs
-    const plateIncrement = 2.5; // smallest pair increment
+    const plateIncrement = 2.5;
     const barWeight = 20;
     if (weight <= barWeight) return barWeight;
     const plateWeight = weight - barWeight;
@@ -23,13 +21,98 @@ function roundToLoadable(weight, exName) {
     return barWeight + Math.max(0, rounded);
   }
   if (DUMBBELL_EXERCISES.includes(exName)) {
-    // Find nearest available DB size
     return DB_SIZES.reduce((prev, curr) =>
       Math.abs(curr - weight) < Math.abs(prev - weight) ? curr : prev
     );
   }
-  // Machine/cable — round to nearest 2.5
   return Math.round(weight / 2.5) * 2.5;
+}
+
+// Plate sizes available, largest first
+const PLATE_SIZES = [25, 20, 15, 10, 5, 2.5, 1.25];
+const PLATE_COLOURS = {
+  25: { bg: "#cc0000", text: "#fff", label: "25" },   // red
+  20: "#2255cc",                                         // blue
+  15: "#ddaa00",                                         // yellow
+  10: "#22aa44",                                         // green
+  5:  "#ffffff",                                         // white
+  2.5: "#4488dd",                                        // light blue
+  1.25: "#aaaaaa",                                       // silver
+};
+
+function calcPlates(totalWeight) {
+  const barWeight = 20;
+  if (totalWeight <= barWeight) return [];
+  let remaining = (totalWeight - barWeight) / 2; // per side
+  const plates = [];
+  for (const size of PLATE_SIZES) {
+    while (remaining >= size - 0.001) {
+      plates.push(size);
+      remaining = Math.round((remaining - size) * 1000) / 1000;
+    }
+  }
+  return plates;
+}
+
+function PlateVisualiser({ weight }) {
+  if (!weight || weight <= 0) return null;
+  const plates = calcPlates(weight);
+  if (!plates.length) return null;
+
+  const getColour = (size) => {
+    const c = PLATE_COLOURS[size];
+    return typeof c === "string" ? { bg: c, text: size >= 15 ? "#fff" : "#111" } : c;
+  };
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 2, overflowX: "auto", paddingBottom: 2 }}>
+        {/* Left collar */}
+        <div style={{ width: 6, height: 28, background: "#888", borderRadius: 2, flexShrink: 0 }} />
+        {/* Bar left */}
+        <div style={{ width: 18, height: 6, background: "#aaa", flexShrink: 0 }} />
+        {/* Plates left side (innermost first — reversed) */}
+        {[...plates].reverse().map((size, i) => {
+          const c = getColour(size);
+          const h = size >= 20 ? 44 : size >= 10 ? 38 : size >= 5 ? 32 : 26;
+          return (
+            <div key={i} style={{
+              width: size >= 10 ? 18 : 12, height: h,
+              background: c.bg, borderRadius: 2,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 7, fontWeight: 700, color: c.text,
+              writingMode: "vertical-rl", flexShrink: 0,
+              border: size === 5 || size === 1.25 ? "1px solid #ccc" : "none",
+            }}>{size}</div>
+          );
+        })}
+        {/* Bar centre */}
+        <div style={{ flex: 1, minWidth: 24, height: 6, background: "#aaa" }} />
+        {/* Plates right side */}
+        {plates.map((size, i) => {
+          const c = getColour(size);
+          const h = size >= 20 ? 44 : size >= 10 ? 38 : size >= 5 ? 32 : 26;
+          return (
+            <div key={i} style={{
+              width: size >= 10 ? 18 : 12, height: h,
+              background: c.bg, borderRadius: 2,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 7, fontWeight: 700, color: c.text,
+              writingMode: "vertical-rl", flexShrink: 0,
+              border: size === 5 || size === 1.25 ? "1px solid #ccc" : "none",
+            }}>{size}</div>
+          );
+        })}
+        {/* Bar right */}
+        <div style={{ width: 18, height: 6, background: "#aaa", flexShrink: 0 }} />
+        {/* Right collar */}
+        <div style={{ width: 6, height: 28, background: "#888", borderRadius: 2, flexShrink: 0 }} />
+      </div>
+      <div style={{ fontSize: 9, color: "#888899", marginTop: 3, letterSpacing: 1 }}>
+        {plates.map(p => `${p}`).join(" + ")} each side
+      </div>
+    </div>
+  );
 }
 
 // ─── Programme ────────────────────────────────────────────────────────────────
@@ -476,6 +559,7 @@ export default function App() {
                       <>
                         <div style={{ fontSize: 14, color: hit ? LG.accentText : missed ? "#cc2222" : LG.accentText, fontWeight: 700 }}>{target.weight}kg</div>
                         <div style={{ fontSize: 11, color: hit ? LG.accent : missed ? "#ee4444" : LG.accent }}>{target.reps} reps</div>
+                        {BARBELL_EXERCISES.includes(ex.name) && si === 0 && <PlateVisualiser weight={target.weight} />}
                       </>
                     ) : target && target.weight === 0 ? (
                       <div style={{ fontSize: 11, color: hit ? LG.accent : missed ? "#ee4444" : LG.accent }}>{target.reps} reps</div>
