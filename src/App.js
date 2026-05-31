@@ -166,7 +166,7 @@ const DAYS = [
       { name: "Pulldown", sets: 3, repMin: 6, repMax: 10, type: "compound", topSet: true },
       { name: "Row", sets: 3, repMin: 10, repMax: 12, type: "compound" },
       { name: "Lateral Raise", sets: 3, repMin: 15, repMax: 25, type: "shoulder_raise" },
-      { name: "Face Pull", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
+      { name: "Face Pull", sets: 3, repMin: 15, repMax: 25, type: "shoulder_raise" },
     ],
     warmupNote: "Forearm warm-up — empty bar rotations, arms locked. Forward to failure, then backward to failure. Do before the superset.",
     circuit: {
@@ -370,7 +370,6 @@ const MUSCLE_GROUPS = {
   "Close Grip Bench Press":      ["Triceps", "Chest"],
   "Neutral Grip Lat Pulldown":   ["Back", "Biceps"],
   "Face Pull":                   ["Shoulders", "Back"],
-  "Overhead Tricep Extension":   ["Triceps"],
   "DB Overhead Tricep Extension":["Triceps"],
   "Hammer Curl":                 ["Biceps"],
   "Wrist Extension":             ["Forearms"],
