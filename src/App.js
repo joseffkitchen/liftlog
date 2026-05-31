@@ -502,7 +502,14 @@ export default function App() {
   const getCircuitLog = dayId => {
     const d = DAYS.find(d => d.id === dayId);
     if (!d.circuit) return null;
-    return logs?.[weekKey]?.[dayId + "_c"] || emptyCircuitLog(d.circuit);
+    const saved = logs?.[weekKey]?.[dayId + "_c"];
+    if (!saved) return emptyCircuitLog(d.circuit);
+    // Ensure each round has the right number of exercise entries
+    return Array.from({ length: d.circuit.rounds }, (_, round) => {
+      return d.circuit.exercises.map((ex, ei) => {
+        return saved[round]?.[ei] || { name: ex.name, weight: ex.fixedWeight ? String(ex.fixedWeight) : "", reps: ex.noProgression ? String(ex.repMin) : "", notes: "" };
+      });
+    });
   };
   const getPrevCircuitLog = dayId => {
     const d = DAYS.find(d => d.id === dayId);
@@ -769,9 +776,9 @@ export default function App() {
                       {ex.noProgression ? (
                         <><div style={{ fontSize: 12, color: LG.label, fontWeight: 600 }}>{ex.fixedWeight}kg</div><div style={{ fontSize: 10, color: LG.muted }}>{ex.repMin}r</div></>
                       ) : ex.noWeight ? (
-                        <input type="number" placeholder="reps" value={entry.reps} onChange={e => updateCircuit(activeDay, round, ei, "reps", e.target.value)} style={{ fontSize: 12, fontWeight: 500, textAlign: "center", color: "#111122" }} />
+                        <input type="number" placeholder="reps" value={entry?.reps || ""} onChange={e => updateCircuit(activeDay, round, ei, "reps", e.target.value)} style={{ fontSize: 12, fontWeight: 500, textAlign: "center", color: "#111122" }} />
                       ) : (
-                        <><input type="number" placeholder="kg" value={entry.weight} onChange={e => updateCircuit(activeDay, round, ei, "weight", e.target.value)} style={{ fontSize: 12, fontWeight: 500, textAlign: "center", color: "#111122", marginBottom: 2 }} /><input type="number" placeholder="reps" value={entry.reps} onChange={e => updateCircuit(activeDay, round, ei, "reps", e.target.value)} style={{ fontSize: 12, fontWeight: 500, textAlign: "center", color: "#111122" }} /></>
+                        <><input type="number" placeholder="kg" value={entry?.weight || ""} onChange={e => updateCircuit(activeDay, round, ei, "weight", e.target.value)} style={{ fontSize: 12, fontWeight: 500, textAlign: "center", color: "#111122", marginBottom: 2 }} /><input type="number" placeholder="reps" value={entry?.reps || ""} onChange={e => updateCircuit(activeDay, round, ei, "reps", e.target.value)} style={{ fontSize: 12, fontWeight: 500, textAlign: "center", color: "#111122" }} /></>
                       )}
                     </div>
                   );
