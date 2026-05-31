@@ -129,38 +129,7 @@ const DAYS = [
     ],
   },
   {
-    id: "day2", label: "Day 2", title: "Upper — Chest + Back",
-    exercises: [
-      { name: "Incline DB Press", sets: 3, repMin: 6, repMax: 10, type: "compound", topSet: true },
-      { name: "Chest Fly", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
-      { name: "Pulldown", sets: 3, repMin: 6, repMax: 10, type: "compound", topSet: true },
-      { name: "Row", sets: 3, repMin: 10, repMax: 12, type: "compound" },
-      { name: "Lateral Raise", sets: 3, repMin: 15, repMax: 25, type: "shoulder_raise" },
-      { name: "Cable Pullover", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
-    ],
-    warmupNote: "Forearm warm-up — empty bar rotations, arms locked. Forward to failure, then backward to failure. Do before the superset.",
-    circuit: {
-      label: "Superset — Arms",
-      rounds: 3,
-      rest: null,
-      exercises: [
-        { name: "Tricep Pushdown", repMin: 12, repMax: 15, type: "accessory" },
-        { name: "Preacher Curl", repMin: 12, repMax: 15, type: "accessory" },
-      ],
-    },
-  },
-  {
-    id: "day3", label: "Day 3", title: "Lower Quad",
-    exercises: [
-      { name: "Back Squat", sets: 3, repMin: 6, repMax: 8, type: "compound", topSet: true },
-      { name: "Leg Press", sets: 3, repMin: 15, repMax: 20, type: "compound" },
-      { name: "Leg Extension", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
-      { name: "Leg Curl", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
-      { name: "Seated Calf Raise", sets: 4, repMin: 20, repMax: 30, type: "accessory" },
-    ],
-  },
-  {
-    id: "day4", label: "Day 4", title: "Shoulders & Arms",
+    id: "day2", label: "Day 2", title: "Shoulders & Arms",
     exercises: [
       { name: "Standing Barbell Press", sets: 3, repMin: 5, repMax: 10, type: "compound", topSet: true },
       { name: "Lateral Raise", sets: 3, repMin: 15, repMax: 25, type: "shoulder_raise" },
@@ -173,9 +142,40 @@ const DAYS = [
       rounds: 3,
       rest: "90s",
       exercises: [
+        { name: "Overhead Tricep Extension", repMin: 15, repMax: 20, type: "accessory" },
         { name: "Hammer Curl", repMin: 15, repMax: 20, type: "accessory" },
-        { name: "Rope Tricep Pushdown", repMin: 15, repMax: 20, type: "accessory" },
         { name: "Close Grip Push Up", repMin: 15, repMax: 20, type: "bodyweight", noWeight: true },
+      ],
+    },
+  },
+  {
+    id: "day3", label: "Day 3", title: "Lower Quad",
+    exercises: [
+      { name: "Back Squat", sets: 3, repMin: 6, repMax: 8, type: "compound", topSet: true },
+      { name: "Leg Press", sets: 3, repMin: 15, repMax: 20, type: "compound" },
+      { name: "Leg Extension", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
+      { name: "Leg Curl", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
+      { name: "Standing Calf Raise", sets: 4, repMin: 20, repMax: 30, type: "accessory" },
+    ],
+  },
+  {
+    id: "day4", label: "Day 4", title: "Chest & Back",
+    exercises: [
+      { name: "Incline DB Press", sets: 3, repMin: 6, repMax: 10, type: "compound", topSet: true },
+      { name: "Chest Fly", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
+      { name: "Pulldown", sets: 3, repMin: 6, repMax: 10, type: "compound", topSet: true },
+      { name: "Row", sets: 3, repMin: 10, repMax: 12, type: "compound" },
+      { name: "Lateral Raise", sets: 3, repMin: 15, repMax: 25, type: "shoulder_raise" },
+      { name: "Face Pull", sets: 3, repMin: 12, repMax: 15, type: "accessory" },
+    ],
+    warmupNote: "Forearm warm-up — empty bar rotations, arms locked. Forward to failure, then backward to failure. Do before the superset.",
+    circuit: {
+      label: "Superset — Arms",
+      rounds: 3,
+      rest: null,
+      exercises: [
+        { name: "Preacher Curl", repMin: 12, repMax: 15, type: "accessory" },
+        { name: "DB Overhead Tricep Extension", repMin: 12, repMax: 15, type: "accessory" },
       ],
     },
   },
@@ -369,7 +369,9 @@ const MUSCLE_GROUPS = {
   "Cable Lateral Raise":         ["Shoulders"],
   "Close Grip Bench Press":      ["Triceps", "Chest"],
   "Neutral Grip Lat Pulldown":   ["Back", "Biceps"],
-  "Overhead Cable Extension":    ["Triceps"],
+  "Face Pull":                   ["Shoulders", "Back"],
+  "Overhead Tricep Extension":   ["Triceps"],
+  "DB Overhead Tricep Extension":["Triceps"],
   "Hammer Curl":                 ["Biceps"],
   "Wrist Extension":             ["Forearms"],
   "Reverse Curl":                ["Biceps", "Forearms"],
