@@ -8,7 +8,7 @@ import { loadLogs, saveLogs } from './supabase';
 // machine: cable stacks / smith / machines - round to nearest 2.5
 
 const BARBELL_EXERCISES = ["Back Squat", "Close Grip Bench Press", "Standing Barbell Press", "RDL"];
-const DUMBBELL_EXERCISES = ["Incline DB Press", "Lateral Raise", "Hammer Curl", "Wrist Extension", "Reverse Curl", "Chest Fly"];
+const DUMBBELL_EXERCISES = ["Incline DB Press", "Lateral Raise", "Hammer Curl", "Wrist Extension", "Reverse Curl", "Chest Fly", "DB Overhead Tricep Extension"];
 const DB_SIZES = [5, 6, 7.5, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50];
 
 function roundToLoadable(weight, exName) {
@@ -28,92 +28,6 @@ function roundToLoadable(weight, exName) {
   return Math.round(weight / 2.5) * 2.5;
 }
 
-// Plate sizes available, largest first
-const PLATE_SIZES = [25, 20, 15, 10, 5, 2.5, 1.25];
-const PLATE_COLOURS = {
-  25: { bg: "#cc0000", text: "#fff", label: "25" },   // red
-  20: "#2255cc",                                         // blue
-  15: "#ddaa00",                                         // yellow
-  10: "#22aa44",                                         // green
-  5:  "#ffffff",                                         // white
-  2.5: "#4488dd",                                        // light blue
-  1.25: "#aaaaaa",                                       // silver
-};
-
-function calcPlates(totalWeight) {
-  const barWeight = 20;
-  if (totalWeight <= barWeight) return [];
-  let remaining = (totalWeight - barWeight) / 2; // per side
-  const plates = [];
-  for (const size of PLATE_SIZES) {
-    while (remaining >= size - 0.001) {
-      plates.push(size);
-      remaining = Math.round((remaining - size) * 1000) / 1000;
-    }
-  }
-  return plates;
-}
-
-function PlateVisualiser({ weight }) {
-  if (!weight || weight <= 0) return null;
-  const plates = calcPlates(weight);
-  if (!plates.length) return null;
-
-  const getColour = (size) => {
-    const c = PLATE_COLOURS[size];
-    return typeof c === "string" ? { bg: c, text: size >= 15 ? "#fff" : "#111" } : c;
-  };
-
-  return (
-    <div style={{ marginTop: 8, marginBottom: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 2, overflowX: "auto", paddingBottom: 2 }}>
-        {/* Left collar */}
-        <div style={{ width: 6, height: 28, background: "#888", borderRadius: 2, flexShrink: 0 }} />
-        {/* Bar left */}
-        <div style={{ width: 18, height: 6, background: "#aaa", flexShrink: 0 }} />
-        {/* Plates left side (innermost first — reversed) */}
-        {[...plates].reverse().map((size, i) => {
-          const c = getColour(size);
-          const h = size >= 20 ? 44 : size >= 10 ? 38 : size >= 5 ? 32 : 26;
-          return (
-            <div key={i} style={{
-              width: size >= 10 ? 18 : 12, height: h,
-              background: c.bg, borderRadius: 2,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 7, fontWeight: 700, color: c.text,
-              writingMode: "vertical-rl", flexShrink: 0,
-              border: size === 5 || size === 1.25 ? "1px solid #ccc" : "none",
-            }}>{size}</div>
-          );
-        })}
-        {/* Bar centre */}
-        <div style={{ flex: 1, minWidth: 24, height: 6, background: "#aaa" }} />
-        {/* Plates right side */}
-        {plates.map((size, i) => {
-          const c = getColour(size);
-          const h = size >= 20 ? 44 : size >= 10 ? 38 : size >= 5 ? 32 : 26;
-          return (
-            <div key={i} style={{
-              width: size >= 10 ? 18 : 12, height: h,
-              background: c.bg, borderRadius: 2,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 7, fontWeight: 700, color: c.text,
-              writingMode: "vertical-rl", flexShrink: 0,
-              border: size === 5 || size === 1.25 ? "1px solid #ccc" : "none",
-            }}>{size}</div>
-          );
-        })}
-        {/* Bar right */}
-        <div style={{ width: 18, height: 6, background: "#aaa", flexShrink: 0 }} />
-        {/* Right collar */}
-        <div style={{ width: 6, height: 28, background: "#888", borderRadius: 2, flexShrink: 0 }} />
-      </div>
-      <div style={{ fontSize: 9, color: "#888899", marginTop: 3, letterSpacing: 1 }}>
-        {plates.map(p => `${p}`).join(" + ")} each side
-      </div>
-    </div>
-  );
-}
 
 // ─── Programme ────────────────────────────────────────────────────────────────
 
@@ -750,9 +664,6 @@ export default function App() {
               const mappedPrev = prevSets.map(e => ({ weight: e.weight, reps: e.reps }));
               const mappedPrevPrev = prevPrevSets.map(e => ({ weight: e.weight, reps: e.reps }));
               // Use current session's first logged round if available (real-time like straight sets)
-              const firstRoundEntry = circuitLog[0]?.[i];
-              const firstW = parseFloat(firstRoundEntry?.weight);
-              const firstR = parseInt(firstRoundEntry?.reps);
               let target = getBaseTarget(mappedPrev.length ? mappedPrev : null, ex, mappedPrevPrev.length ? mappedPrevPrev : null);
               return (
                 <div key={i} style={{ background: "#1e2208", border: `1px solid ${C.accentBorder}`, borderRadius: 6, padding: "6px 2px", textAlign: "center" }}>
@@ -826,21 +737,11 @@ export default function App() {
 
           <div style={{ padding: "0 16px" }}>
             {/* Regular exercises */}
-            {day.exercises.map((ex, exIdx) => {
-              const isSuperset = ex.superset && exIdx > 0 && day.exercises[exIdx - 1]?.superset;
-              return (
-                <div key={ex.name}>
-                  {isSuperset && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, marginBottom: -8 }}>
-                      <div style={{ flex: 1, height: 1, background: C.accent }} />
-                      <div style={{ fontSize: 9, color: "#000", background: C.accent, padding: "2px 8px", borderRadius: 4, letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>Superset</div>
-                      <div style={{ flex: 1, height: 1, background: C.accent }} />
-                    </div>
-                  )}
-                  {renderExercise(ex, exIdx)}
-                </div>
-              );
-            })}
+            {day.exercises.map((ex, exIdx) => (
+              <div key={ex.name}>
+                {renderExercise(ex, exIdx)}
+              </div>
+            ))}
             {/* Circuit */}
             {renderCircuit()}
           </div>
@@ -880,7 +781,6 @@ export default function App() {
 
   // ── VOLUME ───────────────────────────────────────────────────────────────────
   if (view === "volume") {
-    const weekKey = getWeekKey(weekOffset);
     const volume = getWeeklyVolume(logs, weekKey);
     const programmeMax = getProgrammeMaxSets();
 
