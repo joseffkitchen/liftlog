@@ -489,7 +489,14 @@ export default function App() {
 
   const getLog = dayId => {
     const d = DAYS.find(d => d.id === dayId);
-    return logs?.[weekKey]?.[dayId] || emptyLog(d.exercises);
+    const saved = logs?.[weekKey]?.[dayId];
+    if (!saved) return emptyLog(d.exercises);
+    // Merge saved data with current programme — exercises may have changed
+    return d.exercises.map(ex => {
+      const savedEx = saved.find(s => s.name === ex.name);
+      if (savedEx) return savedEx;
+      return { name: ex.name, sets: Array.from({ length: ex.sets }, () => ({ weight: "", reps: "", notes: "" })) };
+    });
   };
   const getPrevLog = dayId => logs?.[prevWeekKey]?.[dayId] || null;
   const getPrevPrevLog = dayId => logs?.[prevPrevWeekKey]?.[dayId] || null;
