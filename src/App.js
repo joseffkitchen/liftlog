@@ -579,14 +579,19 @@ export default function App() {
             const logged = s.weight !== "" && s.reps !== "" && !isNaN(actualW) && !isNaN(actualR);
             const missed = logged && target && target.weight > 0 && (actualW < target.weight || actualR < target.reps);
             const hit = logged && target && target.weight > 0 && actualW >= target.weight && actualR >= target.reps;
-            const pb = logged && bestPrev && isPB(activeEx.name, activeDay, actualW, actualR, logs, weekKey);
+            // PB only shows on the first set that beats it, not subsequent sets at the same weight
+            const isPBSet = logged && bestPrev && si === currentSets.findIndex(s2 => {
+              const w = parseFloat(s2.weight), r = parseInt(s2.reps);
+              return s2.weight !== "" && s2.reps !== "" && !isNaN(w) && !isNaN(r) && isPB(activeEx.name, activeDay, w, r, logs, weekKey);
+            });
+            const inputColour = isPBSet ? "#fff" : "#111122";
             return (
               <div key={si} style={{ marginBottom: 7 }}>
-                {pb && <span style={{ fontSize: 9, color: "#ffffff", background: "#cc8800", padding: "3px 10px", borderRadius: 4, display: "inline-block", marginLeft: 26, marginBottom: 4, textTransform: "uppercase", fontWeight: 700, letterSpacing: 1 }}>🏆 Personal Best!</span>}
+                {isPBSet && <span style={{ fontSize: 9, color: "#ffffff", background: "#cc8800", padding: "3px 10px", borderRadius: 4, display: "inline-block", marginLeft: 26, marginBottom: 4, textTransform: "uppercase", fontWeight: 700, letterSpacing: 1 }}>🏆 Personal Best!</span>}
                 {target?.recalc && <div style={{ fontSize: 9, color: "#00d4ff", letterSpacing: 1, paddingLeft: 30, marginBottom: 3, textTransform: "uppercase", fontWeight: 600 }}>↻ recalculated</div>}
                 <div style={{ display: "grid", gridTemplateColumns: "26px 90px 80px 1fr", gap: 6, padding: "10px 6px", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
-                  background: pb ? "#1a1400" : hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
-                  border: `1.5px solid ${pb ? "#ffcc00" : hit ? LG.hitBorder : missed ? LG.missBorder : isTop ? LG.topBorder : LG.border}` }}>
+                  background: isPBSet ? "#1a1400" : hit ? LG.hit : missed ? LG.miss : isTop ? LG.topBg : LG.surface,
+                  border: `1.5px solid ${isPBSet ? "#ffcc00" : hit ? LG.hitBorder : missed ? LG.missBorder : isTop ? LG.topBorder : LG.border}` }}>
                   <div style={{ fontSize: 12, color: isTop ? LG.topLabel : LG.label, alignSelf: "center", fontWeight: 700, textAlign: "center" }}>{isTop ? "T" : si + 1}</div>
                   <div style={{ alignSelf: "center" }}>
                     {target && target.weight > 0 ? (
@@ -599,10 +604,10 @@ export default function App() {
                     ) : <div style={{ fontSize: 13, color: LG.muted }}>—</div>}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3, alignSelf: "center" }}>
-                    <input type="number" placeholder="kg" value={s.weight} onChange={e => updateSet(activeDay, realIdx, si, "weight", e.target.value)} style={{ fontSize: 14, fontWeight: 500, color: "#111122" }} />
-                    <input type="number" placeholder="reps" value={s.reps} onChange={e => updateSet(activeDay, realIdx, si, "reps", e.target.value)} style={{ fontSize: 14, fontWeight: 500, color: "#111122" }} />
+                    <input type="number" placeholder="kg" value={s.weight} onChange={e => updateSet(activeDay, realIdx, si, "weight", e.target.value)} style={{ fontSize: 14, fontWeight: 500, color: inputColour }} />
+                    <input type="number" placeholder="reps" value={s.reps} onChange={e => updateSet(activeDay, realIdx, si, "reps", e.target.value)} style={{ fontSize: 14, fontWeight: 500, color: inputColour }} />
                   </div>
-                  <input type="text" placeholder="notes…" value={s.notes} onChange={e => updateSet(activeDay, realIdx, si, "notes", e.target.value)} style={{ fontSize: 11, color: "#444466", alignSelf: "center" }} />
+                  <input type="text" placeholder="notes…" value={s.notes} onChange={e => updateSet(activeDay, realIdx, si, "notes", e.target.value)} style={{ fontSize: 11, color: isPBSet ? "#ccaa44" : "#444466", alignSelf: "center" }} />
                 </div>
               </div>
             );
