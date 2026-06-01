@@ -459,8 +459,13 @@ export default function App() {
       const weights = ex.sets.map(s => parseFloat(s.weight)).filter(w => !isNaN(w) && w > 0);
       if (!weights.length) return null;
       const p = wk.split("_");
-      return { week: `${p[3]}/${parseInt(p[2]) + 1}`, weight: Math.max(...weights) };
-    }).filter(Boolean).sort((a, b) => a.week.localeCompare(b.week));
+      const date = new Date(parseInt(p[1]), parseInt(p[2]), parseInt(p[3]));
+      const label = date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      return { week: label, weight: Math.max(...weights) };
+    }).filter(Boolean).sort((a, b) => {
+      // Sort by actual date embedded in key
+      return a.week.localeCompare(b.week);
+    });
 
   if (!loaded) return (
     <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace", color: C.muted, fontSize: 12, letterSpacing: 2 }}>
@@ -893,14 +898,18 @@ export default function App() {
               {chartData.length < 2 ? (
                 <div style={{ padding: "40px 0", textAlign: "center", color: C.muted, fontSize: 12 }}>Log at least 2 sessions to see your chart.</div>
               ) : (
-                <div style={{ background: C.card, border: `1px solid ${C.borderBright}`, borderRadius: 10, padding: "20px 10px 12px" }}>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={chartData}>
+                <div style={{ background: C.card, border: `1px solid ${C.borderBright}`, borderRadius: 10, padding: "20px 10px 20px" }}>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart data={chartData} margin={{ top: 24, right: 20, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                      <XAxis dataKey="week" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} width={36} />
+                      <XAxis dataKey="week" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} width={40} domain={['auto', 'auto']} />
                       <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.borderBright}`, borderRadius: 6, fontSize: 11 }} labelStyle={{ color: C.muted }} itemStyle={{ color: C.accent }} formatter={v => [`${v}kg`, "Top weight"]} />
-                      <Line type="monotone" dataKey="weight" stroke={C.accent} strokeWidth={2.5} dot={{ fill: C.accent, r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="weight" stroke={C.accent} strokeWidth={2.5}
+                        dot={{ fill: C.accent, r: 5 }}
+                        activeDot={{ r: 7 }}
+                        label={{ position: "top", fill: C.accent, fontSize: 10, fontWeight: 700, formatter: v => `${v}kg` }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
