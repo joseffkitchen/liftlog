@@ -97,7 +97,10 @@ const DAYS = [
 
 // ─── Progression Logic ────────────────────────────────────────────────────────
 
-function weightIncrement(type) {
+const LOWER_COMPOUNDS = ["Hip Thrust", "RDL", "Back Squat", "Hack Squat", "Leg Press"];
+
+function weightIncrement(type, exName) {
+  if (type === "compound" && LOWER_COMPOUNDS.includes(exName)) return 5;
   return type === "compound" ? 2.5 : 1;
 }
 
@@ -140,6 +143,7 @@ function getBaseTarget(prevSets, ex, prevPrevSets) {
   if (!prevSets) return null;
   const best = getBestSet(prevSets);
   if (!best) return null;
+  // Always use actual logged weight as the base — not a previous target
   const weight = parseFloat(best.weight) || 0;
   if (!weight && ex.type !== "bodyweight") return null;
   const prevReps = parseInt(best.reps) || ex.repMin;
@@ -160,7 +164,7 @@ function getBaseTarget(prevSets, ex, prevPrevSets) {
   }
 
   if (progress) {
-    const newW = roundToLoadable(weight + weightIncrement(ex.type), ex.name);
+    const newW = roundToLoadable(weight + weightIncrement(ex.type, ex.name), ex.name);
     return { weight: newW, reps: ex.repMin, progressed: true, progressType: "weight" };
   }
   return {
@@ -541,7 +545,7 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{activeEx.name}</div>
                 {swapped && <span style={{ fontSize: 9, background: "#8844cc", color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>Swapped</span>}
-                {baseTarget?.progressed && baseTarget.progressType === "weight" && <span style={{ fontSize: 9, background: LG.badge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+{weightIncrement(activeEx.type)}kg ↑</span>}
+                {baseTarget?.progressed && baseTarget.progressType === "weight" && <span style={{ fontSize: 9, background: LG.badge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+{weightIncrement(activeEx.type, activeEx.name)}kg ↑</span>}
                 {baseTarget?.progressed && baseTarget.progressType === "reps" && <span style={{ fontSize: 9, background: LG.repBadge, color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>+1 rep ↑</span>}
                 {baseTarget?.deload && <span style={{ fontSize: 9, background: "#cc6600", color: "#fff", padding: "2px 7px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>⚠ Deload</span>}
               </div>
